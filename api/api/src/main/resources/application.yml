@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: civic-connect-api
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/civicconnect
+    username: civic
+    password: civic123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.spatial.dialect.postgis.PostgisPG10Dialect
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+# File upload configuration
+file:
+  upload-dir: uploads
+  base-url: http://192.168.70.161:8080
+
+# Multipart file upload settings
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: 20MB
+  max-request-size: 25MB
+
+# CORS configuration for admin panel and mobile
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:3000,http://192.168.70.161:5173,http://192.168.70.161:3000

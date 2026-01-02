@@ -1,0 +1,29 @@
+
+    // Get constituencies by state name as GeoJSON
+    @Query(value = """
+        SELECT json_build_object(
+            'type', 'FeatureCollection',
+            'features', COALESCE(json_agg(
+                json_build_object(
+                    'type', 'Feature',
+                    'id', pc.id,
+                    'geometry', ST_AsGeoJSON(pc.boundary)::json,
+                    'properties', json_build_object(
+                        'id', pc.id,
+                        'pcId', pc.pc_id,
+                        'pcName', pc.pc_name,
+                        'pcNameHi', pc.pc_name_hi,
+                        'stateCode', pc.state_code,
+                        'stateName', pc.state_name,
+                        'reservedCategory', pc.reserved_category,
+                        'currentMpName', pc.current_mp_name,
+                        'currentMpParty', pc.current_mp_party,
+                        'areaSqKm', pc.area_sq_km
+                    )
+                )
+            ), '[]'::json)
+        )::text
+        FROM parliamentary_constituencies pc
+        WHERE pc.state_name = :stateName AND pc.is_active = true
+        """, nativeQuery = true)
+    String findByStateNameAsGeoJson(@Param("stateName") String stateName);

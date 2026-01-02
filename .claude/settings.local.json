@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(mkdir:*)",
+      "Bash(where:*)",
+      "Bash(where npm:*)",
+      "Bash(java:*)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(findstr:*)",
+      "Bash(./mvnw.cmd compile:*)",
+      "Bash(netstat:*)",
+      "Bash(dir uploadsissues)",
+      "Bash(psql:*)",
+      "Bash(ipconfig)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

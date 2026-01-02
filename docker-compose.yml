@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: civic-postgres
+    environment:
+      POSTGRES_DB: civicconnect
+      POSTGRES_USER: civic
+      POSTGRES_PASSWORD: civic123
+    ports:
+      - "5432:5432"
+    volumes:
+      - civic_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civic -d civicconnect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: civic-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - civic_redis_data:/data
+volumes:
+  civic_postgres_data:
+  civic_redis_data:
