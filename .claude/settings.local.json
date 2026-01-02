@@ -15,7 +15,9 @@
       "Bash(dir uploadsissues)",
       "Bash(psql:*)",
       "Bash(ipconfig)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(.mvnw.cmd compile:*)"
     ],
     "deny": [],
     "ask": []

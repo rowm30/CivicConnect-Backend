@@ -17,6 +17,7 @@ public class IssueDTO {
     private String title;
     private String description;
     private String imageUrl;
+    private String audioUrl;
     private String category;
     private String status;
     private String priority;
@@ -84,6 +85,7 @@ public class IssueDTO {
                 .title(issue.getTitle())
                 .description(issue.getDescription())
                 .imageUrl(issue.getImageUrl())
+                .audioUrl(issue.getAudioUrl())
                 .category(issue.getCategory().name())
                 .status(issue.getStatus().name())
                 .priority(issue.getPriority() != null ? issue.getPriority().name() : null)

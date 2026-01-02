@@ -35,3 +35,15 @@ spring.servlet.multipart:
 # CORS configuration for admin panel and mobile
 cors:
   allowed-origins: http://localhost:5173,http://localhost:3000,http://192.168.70.161:5173,http://192.168.70.161:3000
+
+# Google Cloud Platform Configuration
+# IMPORTANT: Gemini models are only available in certain regions
+# us-central1 has the best support for all Gemini models
+gcp:
+  project-id: ${GCP_PROJECT_ID:gen-lang-client-0355231488}
+  location: ${GCP_LOCATION:us-central1}
+  credentials-path: ${GCP_CREDENTIALS_PATH:src/main/resources/gcp-credentials.json}
+  speech:
+    language-code: ${GCP_SPEECH_LANGUAGE:en-IN}
+  gemini:
+    model: ${GCP_GEMINI_MODEL:gemini-2.0-flash}

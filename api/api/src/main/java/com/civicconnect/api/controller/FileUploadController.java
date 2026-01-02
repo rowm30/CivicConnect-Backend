@@ -75,6 +75,65 @@ public class FileUploadController {
     }
 
     /**
+     * Upload an audio recording for an issue
+     * Returns the URL of the uploaded audio file
+     */
+    @PostMapping(value = "/issue-audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadIssueAudio(
+            @RequestParam("file") MultipartFile file
+    ) {
+        log.info("Uploading issue audio: {}, size: {} bytes",
+                file.getOriginalFilename(), file.getSize());
+
+        // Validate file type (audio formats)
+        String contentType = file.getContentType();
+        if (contentType == null || !isValidAudioType(contentType)) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", "Only audio files are allowed (m4a, mp3, wav, aac, ogg)");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Validate file size (max 10MB for audio - 60 seconds of high quality audio)
+        long maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.getSize() > maxSize) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", "File size exceeds maximum limit of 10MB");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        try {
+            String audioUrl = fileStorageService.storeIssueAudio(file);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("fileUrl", audioUrl);
+            response.put("fileName", file.getOriginalFilename());
+            response.put("fileSize", file.getSize());
+
+            log.info("Issue audio uploaded successfully: {}", audioUrl);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to upload issue audio", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", "Failed to upload audio: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(error);
+        }
+    }
+
+    /**
+     * Check if the content type is a valid audio format
+     */
+    private boolean isValidAudioType(String contentType) {
+        return contentType.startsWith("audio/") ||
+               contentType.equals("video/mp4") || // m4a files sometimes have this MIME type
+               contentType.equals("application/octet-stream"); // fallback for unknown audio
+    }
+
+    /**
      * Upload a profile picture
      * Returns the URL of the uploaded image
      */

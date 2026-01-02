@@ -44,6 +44,9 @@ public class Issue {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "audio_url")
+    private String audioUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private IssueCategory category;

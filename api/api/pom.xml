@@ -110,6 +110,27 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-quartz</artifactId>
 		</dependency>
+
+		<!-- Google Cloud Speech-to-Text for voice transcription -->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-speech</artifactId>
+			<version>4.31.0</version>
+		</dependency>
+
+		<!-- Google Cloud Vertex AI for Gemini Vision API -->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-vertexai</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+
+		<!-- Google Auth Library for credentials -->
+		<dependency>
+			<groupId>com.google.auth</groupId>
+			<artifactId>google-auth-library-oauth2-http</artifactId>
+			<version>1.23.0</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

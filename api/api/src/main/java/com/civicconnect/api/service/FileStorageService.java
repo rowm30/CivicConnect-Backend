@@ -92,10 +92,18 @@ public class FileStorageService {
     }
 
     /**
-     * Store file specifically for issues
+     * Store image file specifically for issues
      */
     public String storeIssueImage(MultipartFile file) {
         return storeFile(file, "issues");
+    }
+
+    /**
+     * Store audio file specifically for issues
+     * Audio recordings are stored in "issues/audio" subfolder
+     */
+    public String storeIssueAudio(MultipartFile file) {
+        return storeFile(file, "issues/audio");
     }
 
     /**

@@ -17,6 +17,8 @@ public class CreateIssueRequest {
 
     private String imageUrl;
 
+    private String audioUrl;
+
     @NotNull(message = "Category is required")
     private String category;
 

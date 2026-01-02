@@ -176,6 +176,7 @@ public class IssueService {
         issue.setTitle(request.getTitle());
         issue.setDescription(request.getDescription());
         issue.setImageUrl(request.getImageUrl());
+        issue.setAudioUrl(request.getAudioUrl());
         issue.setCategory(Issue.IssueCategory.valueOf(request.getCategory().toUpperCase()));
 
         if (request.getPriority() != null) {
