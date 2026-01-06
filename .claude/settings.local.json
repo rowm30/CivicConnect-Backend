@@ -17,7 +17,8 @@
       "Bash(ipconfig)",
       "Bash(cat:*)",
       "Bash(dir:*)",
-      "Bash(.mvnw.cmd compile:*)"
+      "Bash(.mvnw.cmd compile:*)",
+      "Bash(./gradlew assembleDebug:*)"
     ],
     "deny": [],
     "ask": []

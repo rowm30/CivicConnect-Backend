@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Define log directory -->
+    <property name="LOG_DIR" value="logs"/>
+
+    <!-- Timestamp for unique log file per run -->
+    <timestamp key="startTimestamp" datePattern="yyyy-MM-dd_HH-mm-ss"/>
+
+    <!-- Console appender with colored output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %cyan(%logger{36}) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender for current run (timestamped) -->
+    <appender name="FILE_CURRENT_RUN" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/civic-connect_${startTimestamp}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling file appender for daily logs -->
+    <appender name="FILE_ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/civic-connect.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/civic-connect_%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Separate file for issue-related logs -->
+    <appender name="FILE_ISSUES" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/issues_${startTimestamp}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Separate file for councillor/representative lookup logs -->
+    <appender name="FILE_COUNCILLOR" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/councillor_${startTimestamp}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Separate file for geocoding logs -->
+    <appender name="FILE_GEOCODING" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/geocoding_${startTimestamp}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Logger for Issue Service -->
+    <logger name="com.civicconnect.api.service.IssueService" level="DEBUG" additivity="true">
+        <appender-ref ref="FILE_ISSUES"/>
+    </logger>
+
+    <!-- Logger for Ward Councillor Service -->
+    <logger name="com.civicconnect.api.service.WardCouncillorService" level="DEBUG" additivity="true">
+        <appender-ref ref="FILE_COUNCILLOR"/>
+    </logger>
+
+    <!-- Logger for Geocoding Service -->
+    <logger name="com.civicconnect.api.service.GeocodingService" level="DEBUG" additivity="true">
+        <appender-ref ref="FILE_GEOCODING"/>
+    </logger>
+
+    <!-- Logger for Location Controller -->
+    <logger name="com.civicconnect.api.controller.legacy.LegacyLocationController" level="DEBUG" additivity="true">
+        <appender-ref ref="FILE_COUNCILLOR"/>
+    </logger>
+
+    <!-- Application package logging -->
+    <logger name="com.civicconnect" level="DEBUG"/>
+
+    <!-- Spring framework logging (less verbose) -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE_CURRENT_RUN"/>
+        <appender-ref ref="FILE_ROLLING"/>
+    </root>
+</configuration>

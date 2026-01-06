@@ -271,13 +271,13 @@ public class IssueController {
     }
 
     /**
-     * Backfill MLA/MP data for existing issues
-     * Updates all issues that have location but missing MLA/MP info
+     * Backfill MLA/MP/Councillor data for existing issues
+     * Updates all issues that have location but missing representative info
      */
     @PostMapping("/backfill-representatives")
     public ResponseEntity<Map<String, Object>> backfillRepresentatives() {
-        log.info("Backfilling MLA/MP data for existing issues");
-        Map<String, Object> result = issueService.backfillMlaAndMpData();
+        log.info("Backfilling MLA/MP/Councillor data for existing issues");
+        Map<String, Object> result = issueService.backfillRepresentativeData();
         return ResponseEntity.ok(result);
     }
 }

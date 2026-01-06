@@ -98,6 +98,22 @@ public class Issue {
     @Column(name = "mp_party")
     private String mpParty;
 
+    // Ward Councillor Information (auto-populated from location for municipal areas)
+    @Column(name = "councillor_id")
+    private Long councillorId;
+
+    @Column(name = "councillor_name")
+    private String councillorName;
+
+    @Column(name = "councillor_party")
+    private String councillorParty;
+
+    @Column(name = "ward_no")
+    private Integer wardNo;
+
+    @Column(name = "ward_name")
+    private String wardName;
+
     // Department/Official assignment
     @Column(name = "department_name")
     private String departmentName;

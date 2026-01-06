@@ -43,6 +43,13 @@ public class IssueDTO {
     private String mpName;
     private String mpParty;
 
+    // Ward Councillor Information
+    private Long councillorId;
+    private String councillorName;
+    private String councillorParty;
+    private Integer wardNo;
+    private String wardName;
+
     // Assignment
     private String departmentName;
     private String assignedOfficialName;
@@ -102,6 +109,11 @@ public class IssueDTO {
                 .mpId(issue.getMpId())
                 .mpName(issue.getMpName())
                 .mpParty(issue.getMpParty())
+                .councillorId(issue.getCouncillorId())
+                .councillorName(issue.getCouncillorName())
+                .councillorParty(issue.getCouncillorParty())
+                .wardNo(issue.getWardNo())
+                .wardName(issue.getWardName())
                 .departmentName(issue.getDepartmentName())
                 .assignedOfficialName(issue.getAssignedOfficialName())
                 .assignedOfficialId(issue.getAssignedOfficialId())

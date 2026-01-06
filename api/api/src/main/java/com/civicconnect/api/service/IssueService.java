@@ -16,6 +16,7 @@ import com.civicconnect.api.repository.MemberOfLegislativeAssemblyRepository;
 import com.civicconnect.api.repository.MemberOfParliamentRepository;
 import com.civicconnect.api.repository.ParliamentaryConstituencyRepository;
 import com.civicconnect.api.repository.analytics.AppUserRepository;
+import com.civicconnect.api.dto.WardCouncillorDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -42,6 +43,8 @@ public class IssueService {
     private final MemberOfLegislativeAssemblyRepository mlaRepository;
     private final ParliamentaryConstituencyRepository pcRepository;
     private final MemberOfParliamentRepository mpRepository;
+    private final WardCouncillorService wardCouncillorService;
+    private final GeocodingService geocodingService;
 
     /**
      * Get hottest issues (sorted by heat score)
@@ -193,9 +196,9 @@ public class IssueService {
         issue.setDepartmentName(request.getDepartmentName());
         issue.setReporter(reporter);
 
-        // Auto-populate MLA and MP based on location
+        // Auto-populate MLA, MP, and Councillor based on location
         if (issue.getLatitude() != null && issue.getLongitude() != null) {
-            populateMlaAndMpFromLocation(issue);
+            populateRepresentativesFromLocation(issue);
         }
 
         // Generate tracking ID
@@ -209,11 +212,13 @@ public class IssueService {
     }
 
     /**
-     * Auto-populate MLA and MP info based on issue location
+     * Auto-populate MLA, MP, and Councillor info based on issue location
      */
-    private void populateMlaAndMpFromLocation(Issue issue) {
+    private void populateRepresentativesFromLocation(Issue issue) {
         Double lat = issue.getLatitude();
         Double lng = issue.getLongitude();
+        String cityName = null;
+        String stateName = null;
 
         try {
             // Find Assembly Constituency and MLA
@@ -221,6 +226,7 @@ public class IssueService {
             if (acOptional.isPresent()) {
                 AssemblyConstituency ac = acOptional.get();
                 issue.setAssemblyConstituency(ac.getAcName());
+                stateName = ac.getStateName();
 
                 // Find MLA for this constituency
                 Optional<MemberOfLegislativeAssembly> mlaOptional = mlaRepository.findByAssemblyConstituencyId(ac.getId());
@@ -233,12 +239,12 @@ public class IssueService {
                     issue.setMlaId(mla.getId());
                     issue.setMlaName(mla.getMemberName());
                     issue.setMlaParty(mla.getPartyName());
-                    log.debug("Found MLA for issue: {} ({})", mla.getMemberName(), mla.getPartyName());
+                    log.info("Found MLA for issue: {} ({})", mla.getMemberName(), mla.getPartyName());
                 } else if (ac.getCurrentMlaName() != null) {
                     // Use MLA info from AC record if direct link not found
                     issue.setMlaName(ac.getCurrentMlaName());
                     issue.setMlaParty(ac.getCurrentMlaParty());
-                    log.debug("Using MLA from AC record: {}", ac.getCurrentMlaName());
+                    log.info("Using MLA from AC record: {}", ac.getCurrentMlaName());
                 }
             }
 
@@ -247,29 +253,142 @@ public class IssueService {
             if (pcOptional.isPresent()) {
                 ParliamentaryConstituency pc = pcOptional.get();
                 issue.setParliamentaryConstituency(pc.getPcName());
+                if (stateName == null) {
+                    stateName = pc.getStateName();
+                }
+                log.info("Found PC for issue: {} (ID: {}, State: {})", pc.getPcName(), pc.getId(), pc.getStateName());
 
                 // Find MP for this constituency
                 Optional<MemberOfParliament> mpOptional = mpRepository.findByConstituencyIdActive(pc.getId());
+                log.debug("MP lookup by constituency ID {}: found={}", pc.getId(), mpOptional.isPresent());
+
                 if (mpOptional.isEmpty()) {
                     // Try by PC name and state
                     mpOptional = mpRepository.findByPcNameAndStateName(pc.getPcName(), pc.getStateName());
+                    log.debug("MP lookup by name '{}' and state '{}': found={}", pc.getPcName(), pc.getStateName(), mpOptional.isPresent());
                 }
+
+                if (mpOptional.isEmpty()) {
+                    // Try partial match on constituency name
+                    var mpList = mpRepository.findByConstituencyNameContainingIgnoreCaseAndIsActiveTrue(pc.getPcName());
+                    if (!mpList.isEmpty()) {
+                        mpOptional = Optional.of(mpList.get(0));
+                        log.debug("MP lookup by partial name match '{}': found {} matches", pc.getPcName(), mpList.size());
+                    }
+                }
+
                 if (mpOptional.isPresent()) {
                     MemberOfParliament mp = mpOptional.get();
                     issue.setMpId(mp.getId());
                     issue.setMpName(mp.getMemberName());
                     issue.setMpParty(mp.getPartyName());
-                    log.debug("Found MP for issue: {} ({})", mp.getMemberName(), mp.getPartyName());
+                    log.info("Found MP for issue: {} ({})", mp.getMemberName(), mp.getPartyName());
                 } else if (pc.getCurrentMpName() != null) {
                     // Use MP info from PC record if direct link not found
                     issue.setMpName(pc.getCurrentMpName());
                     issue.setMpParty(pc.getCurrentMpParty());
-                    log.debug("Using MP from PC record: {}", pc.getCurrentMpName());
+                    log.info("Using MP from PC record: {}", pc.getCurrentMpName());
+                } else {
+                    log.warn("No MP found for PC: {} (ID: {}). PC currentMpName is also null.", pc.getPcName(), pc.getId());
+                }
+            } else {
+                log.warn("No Parliamentary Constituency found for location ({}, {})", lat, lng);
+            }
+
+            // Find Ward Councillor using reverse geocoding
+            // For Delhi, city and state are the same
+            cityName = issue.getDistrictName() != null ? issue.getDistrictName() : stateName;
+            if (cityName != null) {
+                populateCouncillorFromLocation(issue, lat, lng, cityName);
+            }
+
+        } catch (Exception e) {
+            log.warn("Error populating representatives for issue at location ({}, {}): {}", lat, lng, e.getMessage());
+            // Continue without representative info - non-critical error
+        }
+    }
+
+    /**
+     * Populate ward councillor info using reverse geocoding and locality matching
+     */
+    private void populateCouncillorFromLocation(Issue issue, Double lat, Double lng, String city) {
+        try {
+            // Check if councillor data exists for this city
+            long councillorCount = wardCouncillorService.getCountByCity(city);
+            if (councillorCount == 0) {
+                // Try with state name for Delhi-like cases where city = state
+                if (issue.getStateName() != null) {
+                    councillorCount = wardCouncillorService.getCountByCity(issue.getStateName());
+                    if (councillorCount > 0) {
+                        city = issue.getStateName();
+                    }
                 }
             }
+
+            if (councillorCount == 0) {
+                log.debug("No councillor data available for city: {}", city);
+                return;
+            }
+
+            log.info("Found {} councillors for city: {}, attempting geocoding lookup...", councillorCount, city);
+
+            // Use Google Geocoding to get locality name
+            Optional<GeocodingService.GeocodingResult> geocodeResult = geocodingService.reverseGeocode(lat, lng);
+
+            if (geocodeResult.isEmpty()) {
+                log.warn("Geocoding failed for ({}, {}), cannot match councillor", lat, lng);
+                return;
+            }
+
+            GeocodingService.GeocodingResult geo = geocodeResult.get();
+            log.info("Geocoding result: locality={}, sublocality={}, city={}",
+                    geo.locality(), geo.sublocality(), geo.city());
+
+            Optional<WardCouncillorDTO> councillor = Optional.empty();
+
+            // Try locality first (neighborhood)
+            if (geo.locality() != null) {
+                councillor = wardCouncillorService.findByLocality(geo.locality(), city);
+            }
+
+            // Try sublocality if locality didn't match
+            if (councillor.isEmpty() && geo.sublocalityLevel1() != null) {
+                councillor = wardCouncillorService.findByLocality(geo.sublocalityLevel1(), city);
+            }
+
+            // Try sublocalityLevel2
+            if (councillor.isEmpty() && geo.sublocalityLevel2() != null) {
+                councillor = wardCouncillorService.findByLocality(geo.sublocalityLevel2(), city);
+            }
+
+            // Try address match
+            if (councillor.isEmpty() && geo.formattedAddress() != null) {
+                councillor = wardCouncillorService.findByAddress(geo.formattedAddress(), city);
+            }
+
+            // Try matching with Assembly Constituency name as last resort
+            // This is useful because AC names often correspond to ward names in Delhi
+            if (councillor.isEmpty() && issue.getAssemblyConstituency() != null) {
+                log.info("Trying to match councillor using AC name: {}", issue.getAssemblyConstituency());
+                councillor = wardCouncillorService.findByLocality(issue.getAssemblyConstituency(), city);
+            }
+
+            // Populate issue with councillor data
+            if (councillor.isPresent()) {
+                WardCouncillorDTO c = councillor.get();
+                issue.setCouncillorId(c.getId());
+                issue.setCouncillorName(c.getCouncillorName());
+                issue.setCouncillorParty(c.getPartyAffiliation());
+                issue.setWardNo(c.getWardNo());
+                issue.setWardName(c.getWardName());
+                log.info("Matched councillor for issue: {} (Ward {} - {})",
+                        c.getCouncillorName(), c.getWardNo(), c.getWardName());
+            } else {
+                log.info("No councillor match found for locality: {} in city: {}", geo.locality(), city);
+            }
+
         } catch (Exception e) {
-            log.warn("Error populating MLA/MP for issue at location ({}, {}): {}", lat, lng, e.getMessage());
-            // Continue without MLA/MP info - non-critical error
+            log.warn("Error populating councillor for issue at location ({}, {}): {}", lat, lng, e.getMessage());
         }
     }
 
@@ -424,11 +543,11 @@ public class IssueService {
     }
 
     /**
-     * Backfill MLA and MP data for existing issues that have location but missing representative info
+     * Backfill MLA, MP, and Councillor data for existing issues that have location but missing representative info
      */
     @Transactional
-    public Map<String, Object> backfillMlaAndMpData() {
-        log.info("Starting backfill of MLA/MP data for existing issues");
+    public Map<String, Object> backfillRepresentativeData() {
+        log.info("Starting backfill of MLA/MP/Councillor data for existing issues");
 
         List<Issue> issues = issueRepository.findAll();
         int updated = 0;
@@ -441,17 +560,19 @@ public class IssueService {
                 continue;
             }
 
-            // Skip if already has MLA/MP data
-            if (issue.getMlaName() != null && issue.getMpName() != null) {
+            // Skip if already has all representative data
+            if (issue.getMlaName() != null && issue.getMpName() != null && issue.getCouncillorName() != null) {
                 skipped++;
                 continue;
             }
 
-            populateMlaAndMpFromLocation(issue);
+            populateRepresentativesFromLocation(issue);
 
-            if (issue.getMlaName() != null || issue.getMpName() != null) {
+            if (issue.getMlaName() != null || issue.getMpName() != null || issue.getCouncillorName() != null) {
                 issueRepository.save(issue);
                 updated++;
+                log.info("Updated issue {}: MLA={}, MP={}, Councillor={}",
+                        issue.getId(), issue.getMlaName(), issue.getMpName(), issue.getCouncillorName());
             }
         }
 

@@ -22,9 +22,11 @@ server:
   port: 8080
 
 # File upload configuration
+# IMPORTANT: base-url must match the IP that mobile app uses to connect
+# Update this when your computer's IP changes
 file:
   upload-dir: uploads
-  base-url: http://192.168.70.161:8080
+  base-url: http://172.25.31.20:8080
 
 # Multipart file upload settings
 spring.servlet.multipart:
@@ -47,3 +49,24 @@ gcp:
     language-code: ${GCP_SPEECH_LANGUAGE:en-IN}
   gemini:
     model: ${GCP_GEMINI_MODEL:gemini-2.0-flash}
+
+# Google Maps API Configuration
+# Used for reverse geocoding to match ward councillors by locality
+# Replace 'mayankkey' with your actual Google Maps API key
+# Enable the Geocoding API in Google Cloud Console
+google:
+  maps:
+    api:
+      key: ${GOOGLE_MAPS_API_KEY:AIzaSyC3qQumaPr2qYxdDXeZj1M2pcb1oAe7G9g}
+
+# Logging Configuration
+# Timestamped logs are created in /logs directory for each run
+# See logback-spring.xml for detailed configuration
+logging:
+  level:
+    com.civicconnect: DEBUG
+    com.civicconnect.api.service.IssueService: DEBUG
+    com.civicconnect.api.service.WardCouncillorService: DEBUG
+    com.civicconnect.api.service.GeocodingService: DEBUG
+  file:
+    path: logs
