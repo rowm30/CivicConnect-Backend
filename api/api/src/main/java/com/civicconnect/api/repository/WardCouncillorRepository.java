@@ -112,4 +112,23 @@ public interface WardCouncillorRepository extends JpaRepository<WardCouncillor, 
            "WHERE LOWER(w.city) = LOWER(:city) " +
            "AND (LOWER(:address) LIKE LOWER(CONCAT('%', w.wardName, '%')))")
     List<WardCouncillor> findByAddressMatch(@Param("address") String address, @Param("city") String city);
+
+    /**
+     * Find councillor by location coordinates (placeholder - needs spatial query)
+     * For now, returns empty as we don't have ward boundaries in this entity
+     */
+    @Query("SELECT w FROM WardCouncillor w WHERE 1=0")
+    Optional<WardCouncillor> findByLocation(@Param("latitude") Double latitude, @Param("longitude") Double longitude);
+
+    /**
+     * Find all councillors by city name (case insensitive)
+     */
+    @Query("SELECT w FROM WardCouncillor w WHERE LOWER(w.city) = LOWER(:cityName) ORDER BY w.wardNo")
+    List<WardCouncillor> findByCityNameIgnoreCase(@Param("cityName") String cityName);
+
+    /**
+     * Find councillor by city and state
+     */
+    @Query("SELECT w FROM WardCouncillor w WHERE LOWER(w.city) = LOWER(:cityName) AND LOWER(w.state) = LOWER(:stateName) ORDER BY w.wardNo")
+    List<WardCouncillor> findByCityAndStateIgnoreCase(@Param("cityName") String cityName, @Param("stateName") String stateName);
 }

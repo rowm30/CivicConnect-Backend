@@ -103,4 +103,16 @@ public interface MemberOfLegislativeAssemblyRepository extends JpaRepository<Mem
 
     // Find by Assembly Constituency ID
     Optional<MemberOfLegislativeAssembly> findByAssemblyConstituencyId(Long assemblyConstituencyId);
+
+    /**
+     * Find current MLA by AC ID (sitting member)
+     */
+    @Query("SELECT m FROM MemberOfLegislativeAssembly m WHERE m.assemblyConstituency.id = :acId AND m.membershipStatus = 'Sitting'")
+    Optional<MemberOfLegislativeAssembly> findCurrentMlaByAcId(@Param("acId") Long acId);
+
+    /**
+     * Find current MLA by AC ID (alternative - most recent election)
+     */
+    @Query("SELECT m FROM MemberOfLegislativeAssembly m WHERE m.assemblyConstituency.id = :acId ORDER BY m.electionYear DESC")
+    List<MemberOfLegislativeAssembly> findMlasByAcIdOrderByElectionYearDesc(@Param("acId") Long acId);
 }

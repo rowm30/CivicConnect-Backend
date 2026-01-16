@@ -78,4 +78,10 @@ public interface MemberOfParliamentRepository extends JpaRepository<MemberOfParl
     // Find by constituency name and state (for fallback lookup)
     @Query("SELECT m FROM MemberOfParliament m WHERE UPPER(m.constituencyName) = UPPER(:pcName) AND UPPER(m.stateName) = UPPER(:stateName) AND m.isActive = true")
     Optional<MemberOfParliament> findByPcNameAndStateName(@Param("pcName") String pcName, @Param("stateName") String stateName);
+
+    /**
+     * Find current MP by Parliamentary Constituency ID
+     */
+    @Query("SELECT m FROM MemberOfParliament m WHERE m.constituency.id = :pcId AND m.isActive = true")
+    Optional<MemberOfParliament> findCurrentMpByConstituencyId(@Param("pcId") Long pcId);
 }

@@ -280,4 +280,28 @@ public class IssueController {
         Map<String, Object> result = issueService.backfillRepresentativeData();
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * Delete an issue (only by the reporter/owner)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deleteIssue(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        log.info("User {} requesting to delete issue {}", userId, id);
+        try {
+            boolean deleted = issueService.deleteIssue(id, userId);
+            return ResponseEntity.ok(Map.of(
+                "success", deleted,
+                "message", "Issue deleted successfully"
+            ));
+        } catch (RuntimeException e) {
+            log.warn("Failed to delete issue {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }
 }

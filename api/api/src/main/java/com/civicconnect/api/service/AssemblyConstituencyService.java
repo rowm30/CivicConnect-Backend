@@ -47,7 +47,7 @@ public class AssemblyConstituencyService {
 
     public AssemblyConstituencyDTO getConstituencyById(Long id) {
         AssemblyConstituency constituency = repository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Assembly constituency not found with id: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Assembly constituency not found with id: {}" + id));
         return mapper.toDTO(constituency);
     }
 

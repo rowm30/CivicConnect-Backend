@@ -1,0 +1,15 @@
+# Docker ignore file for Spring Boot
+target/
+!target/*.jar
+*.md
+.git
+.gitignore
+.idea
+*.iml
+logs/
+uploads/
+*.log
+gcp-credentials.json
+*-credentials.json
+.env
+.env.*

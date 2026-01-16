@@ -130,6 +130,14 @@ public class RepresentativeRatingService {
     }
 
     /**
+     * Get combined representative stats for Gov Map (simplified version without user context)
+     */
+    public RepresentativeStats getRepresentativeStats(RepresentativeType type, Long representativeId,
+                                                       String name, String party, String constituency) {
+        return getRepresentativeStats(type, representativeId, name, party, constituency, null, null, null);
+    }
+
+    /**
      * Get combined representative stats for Gov Map
      */
     public RepresentativeStats getRepresentativeStats(RepresentativeType type, Long representativeId,

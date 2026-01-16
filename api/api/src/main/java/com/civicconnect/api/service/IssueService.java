@@ -587,6 +587,33 @@ public class IssueService {
         );
     }
 
+    /**
+     * Delete an issue (only by the reporter/owner)
+     * @param issueId the ID of the issue to delete
+     * @param userId the ID of the user requesting deletion
+     * @return true if deleted successfully
+     * @throws RuntimeException if issue not found or user is not the owner
+     */
+    @Transactional
+    public boolean deleteIssue(Long issueId, Long userId) {
+        Issue issue = issueRepository.findById(issueId)
+                .orElseThrow(() -> new RuntimeException("Issue not found: " + issueId));
+
+        // Verify that the user is the reporter (owner) of the issue
+        if (issue.getReporter() == null || !issue.getReporter().getId().equals(userId)) {
+            throw new RuntimeException("You can only delete your own issues");
+        }
+
+        // Delete all votes associated with this issue first
+        issueVoteRepository.deleteByIssueId(issueId);
+
+        // Delete the issue
+        issueRepository.delete(issue);
+
+        log.info("Issue {} deleted by user {}", issueId, userId);
+        return true;
+    }
+
     // Inner class for user stats
     public record UserIssueStats(Long issuesReported, Long issuesResolved, Long votesGiven) {}
 }

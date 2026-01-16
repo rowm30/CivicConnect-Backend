@@ -18,7 +18,14 @@
       "Bash(cat:*)",
       "Bash(dir:*)",
       "Bash(.mvnw.cmd compile:*)",
-      "Bash(./gradlew assembleDebug:*)"
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(git rm:*)",
+      "Bash(./mvnw.cmd clean compile:*)",
+      "Bash(./gradlew.bat assembleDebug --quiet)",
+      "Bash(cmd /c \"npm run build\")",
+      "mcp__filesystem__directory_tree",
+      "Bash(./gradlew :app:compileDebugKotlin:*)",
+      "Bash(./gradlew:*)"
     ],
     "deny": [],
     "ask": []

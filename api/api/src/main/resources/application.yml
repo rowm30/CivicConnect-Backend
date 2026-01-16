@@ -3,9 +3,9 @@ spring:
     name: civic-connect-api
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/civicconnect
-    username: civic
-    password: civic123
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/civicconnect}
+    username: ${DB_USERNAME:civic}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -29,35 +29,50 @@ file:
   base-url: http://172.25.31.20:8080
 
 # Multipart file upload settings
+# Increased for bulk code extraction (200+ images)
 spring.servlet.multipart:
   enabled: true
-  max-file-size: 20MB
-  max-request-size: 25MB
+  max-file-size: 50MB
+  max-request-size: 2GB
+
+# Tomcat settings for large uploads
+server.tomcat:
+  max-swallow-size: 2GB
+  max-http-form-post-size: 2GB
 
 # CORS configuration for admin panel and mobile
 cors:
   allowed-origins: http://localhost:5173,http://localhost:3000,http://192.168.70.161:5173,http://192.168.70.161:3000
 
 # Google Cloud Platform Configuration
+# Set these environment variables:
+#   GCP_PROJECT_ID - Your GCP project ID
+#   GCP_CREDENTIALS_PATH - Path to service account JSON file
 # IMPORTANT: Gemini models are only available in certain regions
 # us-central1 has the best support for all Gemini models
 gcp:
-  project-id: ${GCP_PROJECT_ID:gen-lang-client-0355231488}
+  project-id: ${GCP_PROJECT_ID:}
   location: ${GCP_LOCATION:us-central1}
-  credentials-path: ${GCP_CREDENTIALS_PATH:src/main/resources/gcp-credentials.json}
+  credentials-path: ${GCP_CREDENTIALS_PATH:}
   speech:
     language-code: ${GCP_SPEECH_LANGUAGE:en-IN}
   gemini:
-    model: ${GCP_GEMINI_MODEL:gemini-2.0-flash}
+    model: ${GCP_GEMINI_MODEL:gemini-2.0-flash-001}
 
 # Google Maps API Configuration
 # Used for reverse geocoding to match ward councillors by locality
-# Replace 'mayankkey' with your actual Google Maps API key
+# Set GOOGLE_MAPS_API_KEY environment variable with your API key
 # Enable the Geocoding API in Google Cloud Console
 google:
   maps:
     api:
-      key: ${GOOGLE_MAPS_API_KEY:AIzaSyC3qQumaPr2qYxdDXeZj1M2pcb1oAe7G9g}
+      key: ${GOOGLE_MAPS_API_KEY:}
+
+# Async processing for code extraction
+spring.task.execution:
+  pool:
+    core-size: 2
+    max-size: 5
 
 # Logging Configuration
 # Timestamped logs are created in /logs directory for each run

@@ -1,0 +1,74 @@
+# Cloud Run / GCP Production Configuration
+# This profile is activated when deployed to Cloud Run
+
+spring:
+  application:
+    name: civic-connect-api
+
+  # Cloud SQL Connection via Spring Cloud GCP
+  cloud:
+    gcp:
+      sql:
+        enabled: true
+        database-name: civicconnect
+        instance-connection-name: ${CLOUD_SQL_CONNECTION_NAME}
+      # Project auto-detected from metadata server on Cloud Run
+
+  datasource:
+    username: postgres
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.spatial.dialect.postgis.PostgisPG10Dialect
+        format_sql: false
+    open-in-view: false
+
+server:
+  port: ${PORT:8080}
+
+# File upload configuration - Cloud Storage
+file:
+  upload-dir: ${UPLOAD_BUCKET:civicconnect-uploads}
+  base-url: ${FILE_BASE_URL:https://storage.googleapis.com/civicconnect-uploads}
+  use-cloud-storage: true
+
+# Multipart file upload settings
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: 20MB
+  max-request-size: 25MB
+
+# CORS configuration - Allow mobile app and admin panel
+cors:
+  allowed-origins: ${CORS_ORIGINS:*}
+
+# GCP Configuration - auto-detected on Cloud Run
+gcp:
+  project-id: ${GCP_PROJECT_ID:}
+  location: ${GCP_LOCATION:us-central1}
+  credentials-path: ""
+  speech:
+    language-code: ${GCP_SPEECH_LANGUAGE:en-IN}
+  gemini:
+    model: ${GCP_GEMINI_MODEL:gemini-2.0-flash-001}
+
+# Google Maps API Key from Secret Manager
+google:
+  maps:
+    api:
+      key: ${GOOGLE_MAPS_API_KEY}
+
+# Logging - Cloud Logging compatible (JSON format)
+logging:
+  level:
+    com.civicconnect: INFO
+    root: WARN

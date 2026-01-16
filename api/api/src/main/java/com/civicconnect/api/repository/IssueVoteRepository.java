@@ -35,4 +35,7 @@ public interface IssueVoteRepository extends JpaRepository<IssueVote, Long> {
 
     // Delete vote by user on issue
     void deleteByIssueIdAndUserId(Long issueId, Long userId);
+
+    // Delete all votes for an issue (used when deleting an issue)
+    void deleteByIssueId(Long issueId);
 }
