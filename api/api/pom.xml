@@ -139,6 +139,20 @@
 			<version>2.6.0</version>
 		</dependency>
 
+		<!-- Loki Logback Appender for centralized logging -->
+		<dependency>
+			<groupId>com.github.loki4j</groupId>
+			<artifactId>loki-logback-appender</artifactId>
+			<version>1.4.2</version>
+		</dependency>
+
+		<!-- Logstash Logback Encoder for JSON structured logging -->
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>7.4</version>
+		</dependency>
+
 		<!-- NOTE: Spring Cloud GCP dependencies (Cloud SQL, Storage, Secret Manager) -->
 		<!-- are commented out for local development. Uncomment when deploying to GCP. -->
 		<!--

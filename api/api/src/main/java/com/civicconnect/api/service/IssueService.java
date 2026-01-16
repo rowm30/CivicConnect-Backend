@@ -599,8 +599,23 @@ public class IssueService {
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Issue not found: " + issueId));
 
-        // Verify that the user is the reporter (owner) of the issue
-        if (issue.getReporter() == null || !issue.getReporter().getId().equals(userId)) {
+        // Get the requesting user
+        AppUser requestingUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+        // Verify ownership - check by reporter ID (primary) or by name (fallback for old issues)
+        boolean isOwner = false;
+        if (issue.getReporter() != null && issue.getReporter().getId().equals(userId)) {
+            isOwner = true;
+        } else if (issue.getReporter() != null && requestingUser.getName() != null &&
+                   issue.getReporter().getName() != null &&
+                   issue.getReporter().getName().equalsIgnoreCase(requestingUser.getName())) {
+            // Fallback: Match by name for old issues where ID might not match
+            isOwner = true;
+            log.info("Delete authorized by name match for issue {} (user: {})", issueId, requestingUser.getName());
+        }
+
+        if (!isOwner) {
             throw new RuntimeException("You can only delete your own issues");
         }
 
