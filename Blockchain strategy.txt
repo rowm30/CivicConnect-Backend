@@ -1,0 +1,1896 @@
+The user wants to build a custom blockchain from scratch for a voting application. They want:
+
+1. A private/custom blockchain (not Ethereum, Bitcoin, etc.)
+2. To run on their own server
+3. Android mobile app integration
+4. Users participate in maintaining the ledger
+5. Spring Boot backend
+6. Ability to tweak the blockchain algorithm
+7. Simple implementation
+
+Let me break this down into a comprehensive guide:
+
+## Key Components Needed:
+
+1. **Block Structure** - What data each block contains
+2. **Hashing Algorithm** - SHA-256 typically
+3. **Chain Validation** - Ensuring integrity
+4. **Consensus Mechanism** - How nodes agree (for simplicity, maybe Proof of Authority or simple voting)
+5. **P2P Network** - How nodes communicate
+6. **API Layer** - Spring Boot REST APIs
+7. **Android Client** - Mobile app that participates
+
+Let me design a simple but functional blockchain:
+
+### Block Structure:
+```
+{
+  index: number,
+  timestamp: long,
+  votes: List<Vote>,
+  previousHash: string,
+  hash: string,
+  nonce: number (optional for PoW)
+}
+```
+
+### Vote Structure:
+```
+{
+  voterId: string,
+  candidateId: string,
+  timestamp: long,
+  signature: string
+}
+```
+
+### Core Components:
+
+1. **Block class**
+2. **Blockchain class**
+3. **Node/Peer management**
+4. **Consensus mechanism**
+5. **REST API controllers**
+6. **WebSocket for real-time sync**
+
+Let me create a step-by-step guide:
+
+## Step 1: Project Setup (Spring Boot)
+
+## Step 2: Core Blockchain Classes
+- Block.java
+- Vote.java
+- Blockchain.java
+
+## Step 3: Cryptographic Utils
+- SHA-256 hashing
+- Digital signatures for vote verification
+
+
+I'll focus on implementing a lightweight consensus mechanism that ensures network security while maintaining simplicity. The approach will involve creating a flexible consensus protocol that supports both Proof of Work and Proof of Authority, depending on the specific voting application requirements.
+
+For the mobile implementation, I'll design a lightweight node architecture that allows Android devices to participate in blockchain validation without requiring full chain storage. This involves creating a thin client approach that can verify transactions and maintain partial blockchain state.
+
+The P2P network layer will be critical, enabling secure node registration, block broadcasting, and chain synchronization across different devices and server infrastructure. I'll implement a robust communication protocol that ensures data integrity and prevents malicious node interactions.
+
+The REST API will provide clear endpoints for core blockchain interactions, including vote submission, blockchain retrieval, node registration, and chain synchronization. Each endpoint will include comprehensive validation to maintain the blockchain's security and consistency.
+# Building a Custom Blockchain for Voting - Complete Guide
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    YOUR INFRASTRUCTURE                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
+│  │  Server 1   │◄───►│  Server 2   │◄───►│  Server 3   │   │
+│  │ (Full Node) │     │ (Full Node) │     │ (Full Node) │   │
+│  └──────┬──────┘     └──────┬──────┘     └─────────────┘   │
+│         │                   │                               │
+│         └─────────┬─────────┘                               │
+│                   │                                         │
+│         ┌─────────▼─────────┐                               │
+│         │   Load Balancer   │                               │
+│         └─────────┬─────────┘                               │
+│                   │                                         │
+└───────────────────┼─────────────────────────────────────────┘
+                    │
+        ┌───────────┼───────────┐
+        │           │           │
+   ┌────▼────┐ ┌────▼────┐ ┌────▼────┐
+   │ Android │ │ Android │ │ Android │
+   │  (Light │ │  (Light │ │  (Light │
+   │  Node)  │ │  Node)  │ │  Node)  │
+   └─────────┘ └─────────┘ └─────────┘
+```
+
+---
+
+## STEP 1: Project Setup
+
+### 1.1 Create Spring Boot Project
+
+```bash
+# Using Spring Initializr or Maven
+mkdir voting-blockchain && cd voting-blockchain
+```
+
+### 1.2 pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.voting</groupId>
+    <artifactId>blockchain</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+    </parent>
+    
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+    
+    <dependencies>
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <!-- WebSocket for P2P communication -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        
+        <!-- JSON processing -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+        
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        
+        <!-- Bouncy Castle for cryptography -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.77</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+---
+
+## STEP 2: Core Blockchain Models
+
+### 2.1 Vote.java
+
+```java
+package com.voting.blockchain.model;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Vote {
+    private String voteId;           // Unique vote identifier
+    private String voterId;          // Hashed voter ID (anonymous but verifiable)
+    private String candidateId;      // Who they voted for
+    private long timestamp;          // When vote was cast
+    private String signature;        // Digital signature for verification
+    private String voterPublicKey;   // Public key to verify signature
+    
+    // Create signable data string
+    public String getSignableData() {
+        return voteId + voterId + candidateId + timestamp;
+    }
+}
+```
+
+### 2.2 Block.java
+
+```java
+package com.voting.blockchain.model;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import java.util.List;
+import java.util.ArrayList;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Block {
+    private int index;                    // Block position in chain
+    private long timestamp;               // Block creation time
+    private List<Vote> votes;             // Votes in this block
+    private String previousHash;          // Previous block's hash
+    private String hash;                  // This block's hash
+    private int nonce;                    // For proof of work
+    private String merkleRoot;            // Merkle root of votes
+    
+    public Block(int index, String previousHash) {
+        this.index = index;
+        this.timestamp = System.currentTimeMillis();
+        this.votes = new ArrayList<>();
+        this.previousHash = previousHash;
+        this.nonce = 0;
+    }
+}
+```
+
+### 2.3 Blockchain.java (Core Engine)
+
+```java
+package com.voting.blockchain.core;
+
+import com.voting.blockchain.model.Block;
+import com.voting.blockchain.model.Vote;
+import com.voting.blockchain.util.CryptoUtil;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+@Slf4j
+@Component
+public class Blockchain {
+    
+    @Getter
+    private final List<Block> chain;
+    
+    @Getter
+    private final List<Vote> pendingVotes;
+    
+    private final int difficulty;           // Number of leading zeros required
+    private final int blockSize;            // Max votes per block
+    
+    // Set of voter IDs who have already voted (prevent double voting)
+    private final Set<String> voterRegistry;
+    
+    public Blockchain() {
+        this.chain = new CopyOnWriteArrayList<>();
+        this.pendingVotes = new CopyOnWriteArrayList<>();
+        this.voterRegistry = Collections.synchronizedSet(new HashSet<>());
+        this.difficulty = 4;                // Adjust based on your needs
+        this.blockSize = 100;               // Votes per block
+        
+        // Create genesis block
+        createGenesisBlock();
+    }
+    
+    // ============ GENESIS BLOCK ============
+    private void createGenesisBlock() {
+        Block genesis = new Block(0, "0");
+        genesis.setTimestamp(System.currentTimeMillis());
+        genesis.setVotes(new ArrayList<>());
+        genesis.setMerkleRoot("0");
+        genesis.setHash(calculateHash(genesis));
+        chain.add(genesis);
+        log.info("Genesis block created: {}", genesis.getHash());
+    }
+    
+    // ============ HASH CALCULATION ============
+    public String calculateHash(Block block) {
+        String data = block.getIndex() +
+                      block.getTimestamp() +
+                      block.getPreviousHash() +
+                      block.getMerkleRoot() +
+                      block.getNonce();
+        return CryptoUtil.sha256(data);
+    }
+    
+    // ============ MERKLE ROOT ============
+    public String calculateMerkleRoot(List<Vote> votes) {
+        if (votes == null || votes.isEmpty()) {
+            return CryptoUtil.sha256("empty");
+        }
+        
+        List<String> hashes = new ArrayList<>();
+        for (Vote vote : votes) {
+            hashes.add(CryptoUtil.sha256(vote.getSignableData()));
+        }
+        
+        while (hashes.size() > 1) {
+            List<String> newHashes = new ArrayList<>();
+            for (int i = 0; i < hashes.size(); i += 2) {
+                String left = hashes.get(i);
+                String right = (i + 1 < hashes.size()) ? hashes.get(i + 1) : left;
+                newHashes.add(CryptoUtil.sha256(left + right));
+            }
+            hashes = newHashes;
+        }
+        
+        return hashes.get(0);
+    }
+    
+    // ============ PROOF OF WORK ============
+    public Block mineBlock(Block block) {
+        String target = new String(new char[difficulty]).replace('\0', '0');
+        
+        while (!block.getHash().substring(0, difficulty).equals(target)) {
+            block.setNonce(block.getNonce() + 1);
+            block.setHash(calculateHash(block));
+        }
+        
+        log.info("Block mined! Hash: {} Nonce: {}", block.getHash(), block.getNonce());
+        return block;
+    }
+    
+    // ============ ADD VOTE ============
+    public synchronized boolean addVote(Vote vote) {
+        // Check if voter already voted
+        if (voterRegistry.contains(vote.getVoterId())) {
+            log.warn("Voter {} already voted!", vote.getVoterId());
+            return false;
+        }
+        
+        // Verify signature
+        if (!CryptoUtil.verifySignature(
+                vote.getSignableData(), 
+                vote.getSignature(), 
+                vote.getVoterPublicKey())) {
+            log.warn("Invalid vote signature!");
+            return false;
+        }
+        
+        // Add to pending votes
+        pendingVotes.add(vote);
+        voterRegistry.add(vote.getVoterId());
+        
+        log.info("Vote added to pending pool. Total pending: {}", pendingVotes.size());
+        
+        // Auto-mine if we have enough votes
+        if (pendingVotes.size() >= blockSize) {
+            mineAndAddBlock();
+        }
+        
+        return true;
+    }
+    
+    // ============ MINE NEW BLOCK ============
+    public synchronized Block mineAndAddBlock() {
+        if (pendingVotes.isEmpty()) {
+            return null;
+        }
+        
+        Block lastBlock = getLatestBlock();
+        Block newBlock = new Block(lastBlock.getIndex() + 1, lastBlock.getHash());
+        
+        // Take votes for this block
+        List<Vote> blockVotes = new ArrayList<>(
+            pendingVotes.subList(0, Math.min(blockSize, pendingVotes.size()))
+        );
+        newBlock.setVotes(blockVotes);
+        newBlock.setMerkleRoot(calculateMerkleRoot(blockVotes));
+        newBlock.setHash(calculateHash(newBlock));
+        
+        // Mine the block
+        mineBlock(newBlock);
+        
+        // Add to chain
+        chain.add(newBlock);
+        
+        // Remove mined votes from pending
+        pendingVotes.removeAll(blockVotes);
+        
+        log.info("New block added! Index: {} Votes: {}", 
+                 newBlock.getIndex(), blockVotes.size());
+        
+        return newBlock;
+    }
+    
+    // ============ GET LATEST BLOCK ============
+    public Block getLatestBlock() {
+        return chain.get(chain.size() - 1);
+    }
+    
+    // ============ CHAIN VALIDATION ============
+    public boolean isChainValid() {
+        return isChainValid(this.chain);
+    }
+    
+    public boolean isChainValid(List<Block> chainToValidate) {
+        for (int i = 1; i < chainToValidate.size(); i++) {
+            Block current = chainToValidate.get(i);
+            Block previous = chainToValidate.get(i - 1);
+            
+            // Verify hash
+            if (!current.getHash().equals(calculateHash(current))) {
+                log.error("Invalid hash at block {}", i);
+                return false;
+            }
+            
+            // Verify chain link
+            if (!current.getPreviousHash().equals(previous.getHash())) {
+                log.error("Broken chain link at block {}", i);
+                return false;
+            }
+            
+            // Verify merkle root
+            String expectedMerkle = calculateMerkleRoot(current.getVotes());
+            if (!current.getMerkleRoot().equals(expectedMerkle)) {
+                log.error("Invalid merkle root at block {}", i);
+                return false;
+            }
+            
+            // Verify proof of work
+            String target = new String(new char[difficulty]).replace('\0', '0');
+            if (!current.getHash().substring(0, difficulty).equals(target)) {
+                log.error("Invalid proof of work at block {}", i);
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    // ============ REPLACE CHAIN (CONSENSUS) ============
+    public synchronized boolean replaceChain(List<Block> newChain) {
+        if (newChain.size() > chain.size() && isChainValid(newChain)) {
+            log.info("Replacing chain. Old length: {} New length: {}", 
+                     chain.size(), newChain.size());
+            chain.clear();
+            chain.addAll(newChain);
+            
+            // Rebuild voter registry
+            rebuildVoterRegistry();
+            return true;
+        }
+        return false;
+    }
+    
+    private void rebuildVoterRegistry() {
+        voterRegistry.clear();
+        for (Block block : chain) {
+            for (Vote vote : block.getVotes()) {
+                voterRegistry.add(vote.getVoterId());
+            }
+        }
+    }
+    
+    // ============ GET VOTE COUNTS ============
+    public Map<String, Long> getVoteCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        
+        for (Block block : chain) {
+            for (Vote vote : block.getVotes()) {
+                counts.merge(vote.getCandidateId(), 1L, Long::sum);
+            }
+        }
+        
+        return counts;
+    }
+    
+    // ============ CHECK IF VOTED ============
+    public boolean hasVoted(String voterId) {
+        return voterRegistry.contains(voterId);
+    }
+}
+```
+
+---
+
+## STEP 3: Cryptographic Utilities
+
+### 3.1 CryptoUtil.java
+
+```java
+package com.voting.blockchain.util;
+
+import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
+
+@Slf4j
+public class CryptoUtil {
+    
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
+    
+    // ============ SHA-256 HASH ============
+    public static String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
+    }
+    
+    // ============ GENERATE KEY PAIR ============
+    public static KeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
+            keyGen.initialize(256, new SecureRandom());
+            return keyGen.generateKeyPair();
+        } catch (Exception e) {
+            throw new RuntimeException("Key generation failed", e);
+        }
+    }
+    
+    // ============ SIGN DATA ============
+    public static String sign(String data, PrivateKey privateKey) {
+        try {
+            Signature signature = Signature.getInstance("SHA256withECDSA", "BC");
+            signature.initSign(privateKey);
+            signature.update(data.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(signature.sign());
+        } catch (Exception e) {
+            throw new RuntimeException("Signing failed", e);
+        }
+    }
+    
+    // ============ VERIFY SIGNATURE ============
+    public static boolean verifySignature(String data, String signatureStr, 
+                                          String publicKeyStr) {
+        try {
+            byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyStr);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            PublicKey publicKey = keyFactory.generatePublic(keySpec);
+            
+            Signature signature = Signature.getInstance("SHA256withECDSA", "BC");
+            signature.initVerify(publicKey);
+            signature.update(data.getBytes(StandardCharsets.UTF_8));
+            
+            byte[] signatureBytes = Base64.getDecoder().decode(signatureStr);
+            return signature.verify(signatureBytes);
+        } catch (Exception e) {
+            log.error("Signature verification failed", e);
+            return false;
+        }
+    }
+    
+    // ============ KEY TO STRING ============
+    public static String publicKeyToString(PublicKey publicKey) {
+        return Base64.getEncoder().encodeToString(publicKey.getEncoded());
+    }
+    
+    public static String privateKeyToString(PrivateKey privateKey) {
+        return Base64.getEncoder().encodeToString(privateKey.getEncoded());
+    }
+    
+    // ============ STRING TO KEY ============
+    public static PrivateKey stringToPrivateKey(String keyStr) {
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(keyStr);
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            return keyFactory.generatePrivate(keySpec);
+        } catch (Exception e) {
+            throw new RuntimeException("Key conversion failed", e);
+        }
+    }
+    
+    // ============ HASH VOTER ID (FOR ANONYMITY) ============
+    public static String hashVoterId(String rawVoterId, String salt) {
+        return sha256(rawVoterId + salt);
+    }
+}
+```
+
+---
+
+## STEP 4: P2P Network Layer
+
+### 4.1 Node.java
+
+```java
+package com.voting.blockchain.network;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Node {
+    private String nodeId;
+    private String address;      // e.g., "http://192.168.1.100:8080"
+    private NodeType type;
+    private long lastSeen;
+    
+    public enum NodeType {
+        FULL_NODE,      // Server - stores full chain, can mine
+        LIGHT_NODE      // Mobile - validates, submits votes
+    }
+}
+```
+
+### 4.2 P2PService.java
+
+```java
+package com.voting.blockchain.network;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.voting.blockchain.core.Blockchain;
+import com.voting.blockchain.model.Block;
+import com.voting.blockchain.model.Vote;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class P2PService {
+    
+    private final Blockchain blockchain;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final Gson gson = new Gson();
+    
+    private final Map<String, Node> peers = new ConcurrentHashMap<>();
+    
+    // ============ REGISTER PEER ============
+    public void registerPeer(Node node) {
+        node.setLastSeen(System.currentTimeMillis());
+        peers.put(node.getNodeId(), node);
+        log.info("Registered peer: {} at {}", node.getNodeId(), node.getAddress());
+    }
+    
+    // ============ REMOVE PEER ============
+    public void removePeer(String nodeId) {
+        peers.remove(nodeId);
+        log.info("Removed peer: {}", nodeId);
+    }
+    
+    // ============ GET ALL PEERS ============
+    public Collection<Node> getPeers() {
+        return peers.values();
+    }
+    
+    // ============ BROADCAST NEW BLOCK ============
+    public void broadcastBlock(Block block) {
+        String blockJson = gson.toJson(block);
+        
+        for (Node peer : peers.values()) {
+            if (peer.getType() == Node.NodeType.FULL_NODE) {
+                try {
+                    String url = peer.getAddress() + "/api/blockchain/receive-block";
+                    restTemplate.postForEntity(url, block, Void.class);
+                    log.info("Broadcasted block {} to {}", block.getIndex(), peer.getAddress());
+                } catch (Exception e) {
+                    log.error("Failed to broadcast to {}: {}", peer.getAddress(), e.getMessage());
+                }
+            }
+        }
+    }
+    
+    // ============ BROADCAST NEW VOTE ============
+    public void broadcastVote(Vote vote) {
+        for (Node peer : peers.values()) {
+            if (peer.getType() == Node.NodeType.FULL_NODE) {
+                try {
+                    String url = peer.getAddress() + "/api/blockchain/receive-vote";
+                    restTemplate.postForEntity(url, vote, Void.class);
+                    log.info("Broadcasted vote to {}", peer.getAddress());
+                } catch (Exception e) {
+                    log.error("Failed to broadcast vote to {}: {}", 
+                             peer.getAddress(), e.getMessage());
+                }
+            }
+        }
+    }
+    
+    // ============ SYNC CHAIN FROM PEERS ============
+    @Scheduled(fixedRate = 30000)  // Every 30 seconds
+    public void syncChain() {
+        log.info("Starting chain sync...");
+        
+        for (Node peer : peers.values()) {
+            if (peer.getType() == Node.NodeType.FULL_NODE) {
+                try {
+                    String url = peer.getAddress() + "/api/blockchain/chain";
+                    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+                    
+                    List<Block> peerChain = gson.fromJson(
+                        response.getBody(),
+                        new TypeToken<List<Block>>(){}.getType()
+                    );
+                    
+                    if (blockchain.replaceChain(peerChain)) {
+                        log.info("Chain replaced from peer: {}", peer.getAddress());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to sync from {}: {}", peer.getAddress(), e.getMessage());
+                }
+            }
+        }
+    }
+    
+    // ============ HEALTH CHECK PEERS ============
+    @Scheduled(fixedRate = 60000)  // Every minute
+    public void healthCheck() {
+        long now = System.currentTimeMillis();
+        long timeout = 5 * 60 * 1000;  // 5 minutes
+        
+        peers.entrySet().removeIf(entry -> {
+            if (now - entry.getValue().getLastSeen() > timeout) {
+                log.info("Removing inactive peer: {}", entry.getKey());
+                return true;
+            }
+            return false;
+        });
+    }
+}
+```
+
+---
+
+## STEP 5: REST API Controllers
+
+### 5.1 BlockchainController.java
+
+```java
+package com.voting.blockchain.controller;
+
+import com.voting.blockchain.core.Blockchain;
+import com.voting.blockchain.model.Block;
+import com.voting.blockchain.model.Vote;
+import com.voting.blockchain.network.Node;
+import com.voting.blockchain.network.P2PService;
+import com.voting.blockchain.dto.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/blockchain")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class BlockchainController {
+    
+    private final Blockchain blockchain;
+    private final P2PService p2pService;
+    
+    // ============ GET FULL CHAIN ============
+    @GetMapping("/chain")
+    public ResponseEntity<List<Block>> getChain() {
+        return ResponseEntity.ok(blockchain.getChain());
+    }
+    
+    // ============ GET CHAIN STATUS ============
+    @GetMapping("/status")
+    public ResponseEntity<ChainStatusResponse> getStatus() {
+        ChainStatusResponse status = ChainStatusResponse.builder()
+            .chainLength(blockchain.getChain().size())
+            .latestBlockHash(blockchain.getLatestBlock().getHash())
+            .pendingVotes(blockchain.getPendingVotes().size())
+            .isValid(blockchain.isChainValid())
+            .totalVotes(getTotalVotes())
+            .build();
+        return ResponseEntity.ok(status);
+    }
+    
+    // ============ SUBMIT VOTE ============
+    @PostMapping("/vote")
+    public ResponseEntity<VoteResponse> submitVote(@RequestBody VoteRequest request) {
+        log.info("Received vote from: {}", request.getVoterId());
+        
+        // Check if already voted
+        if (blockchain.hasVoted(request.getVoterId())) {
+            return ResponseEntity.badRequest()
+                .body(VoteResponse.builder()
+                    .success(false)
+                    .message("You have already voted!")
+                    .build());
+        }
+        
+        // Create vote
+        Vote vote = Vote.builder()
+            .voteId(java.util.UUID.randomUUID().toString())
+            .voterId(request.getVoterId())
+            .candidateId(request.getCandidateId())
+            .timestamp(System.currentTimeMillis())
+            .signature(request.getSignature())
+            .voterPublicKey(request.getPublicKey())
+            .build();
+        
+        // Add vote
+        boolean added = blockchain.addVote(vote);
+        
+        if (added) {
+            // Broadcast to peers
+            p2pService.broadcastVote(vote);
+            
+            return ResponseEntity.ok(VoteResponse.builder()
+                .success(true)
+                .message("Vote recorded successfully!")
+                .voteId(vote.getVoteId())
+                .blockIndex(blockchain.getLatestBlock().getIndex())
+                .build());
+        } else {
+            return ResponseEntity.badRequest()
+                .body(VoteResponse.builder()
+                    .success(false)
+                    .message("Vote verification failed!")
+                    .build());
+        }
+    }
+    
+    // ============ GET VOTE RESULTS ============
+    @GetMapping("/results")
+    public ResponseEntity<Map<String, Long>> getResults() {
+        return ResponseEntity.ok(blockchain.getVoteCounts());
+    }
+    
+    // ============ VERIFY CHAIN ============
+    @GetMapping("/verify")
+    public ResponseEntity<VerificationResponse> verifyChain() {
+        boolean isValid = blockchain.isChainValid();
+        return ResponseEntity.ok(VerificationResponse.builder()
+            .valid(isValid)
+            .blocksVerified(blockchain.getChain().size())
+            .timestamp(System.currentTimeMillis())
+            .build());
+    }
+    
+    // ============ RECEIVE BLOCK FROM PEER ============
+    @PostMapping("/receive-block")
+    public ResponseEntity<Void> receiveBlock(@RequestBody Block block) {
+        log.info("Received block {} from peer", block.getIndex());
+        // Validate and add block logic
+        return ResponseEntity.ok().build();
+    }
+    
+    // ============ RECEIVE VOTE FROM PEER ============
+    @PostMapping("/receive-vote")
+    public ResponseEntity<Void> receiveVote(@RequestBody Vote vote) {
+        log.info("Received vote from peer");
+        blockchain.addVote(vote);
+        return ResponseEntity.ok().build();
+    }
+    
+    // ============ REGISTER NODE ============
+    @PostMapping("/nodes/register")
+    public ResponseEntity<NodeResponse> registerNode(@RequestBody Node node) {
+        p2pService.registerPeer(node);
+        return ResponseEntity.ok(NodeResponse.builder()
+            .message("Node registered successfully")
+            .totalNodes(p2pService.getPeers().size())
+            .build());
+    }
+    
+    // ============ GET ALL NODES ============
+    @GetMapping("/nodes")
+    public ResponseEntity<?> getNodes() {
+        return ResponseEntity.ok(p2pService.getPeers());
+    }
+    
+    // ============ FORCE MINE BLOCK ============
+    @PostMapping("/mine")
+    public ResponseEntity<Block> mineBlock() {
+        Block newBlock = blockchain.mineAndAddBlock();
+        if (newBlock != null) {
+            p2pService.broadcastBlock(newBlock);
+            return ResponseEntity.ok(newBlock);
+        }
+        return ResponseEntity.noContent().build();
+    }
+    
+    // ============ CHECK VOTE STATUS ============
+    @GetMapping("/vote-status/{voterId}")
+    public ResponseEntity<VoteStatusResponse> checkVoteStatus(@PathVariable String voterId) {
+        boolean hasVoted = blockchain.hasVoted(voterId);
+        return ResponseEntity.ok(VoteStatusResponse.builder()
+            .voterId(voterId)
+            .hasVoted(hasVoted)
+            .build());
+    }
+    
+    private long getTotalVotes() {
+        return blockchain.getChain().stream()
+            .mapToLong(block -> block.getVotes().size())
+            .sum();
+    }
+}
+```
+
+### 5.2 DTO Classes
+
+```java
+// VoteRequest.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+
+@Data
+public class VoteRequest {
+    private String voterId;
+    private String candidateId;
+    private String signature;
+    private String publicKey;
+}
+
+// VoteResponse.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+import lombok.Builder;
+
+@Data
+@Builder
+public class VoteResponse {
+    private boolean success;
+    private String message;
+    private String voteId;
+    private int blockIndex;
+}
+
+// ChainStatusResponse.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+import lombok.Builder;
+
+@Data
+@Builder
+public class ChainStatusResponse {
+    private int chainLength;
+    private String latestBlockHash;
+    private int pendingVotes;
+    private boolean isValid;
+    private long totalVotes;
+}
+
+// VerificationResponse.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+import lombok.Builder;
+
+@Data
+@Builder
+public class VerificationResponse {
+    private boolean valid;
+    private int blocksVerified;
+    private long timestamp;
+}
+
+// NodeResponse.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+import lombok.Builder;
+
+@Data
+@Builder
+public class NodeResponse {
+    private String message;
+    private int totalNodes;
+}
+
+// VoteStatusResponse.java
+package com.voting.blockchain.dto;
+
+import lombok.Data;
+import lombok.Builder;
+
+@Data
+@Builder
+public class VoteStatusResponse {
+    private String voterId;
+    private boolean hasVoted;
+}
+```
+
+---
+
+## STEP 6: Spring Boot Configuration
+
+### 6.1 application.yml
+
+```yaml
+server:
+  port: 8080
+
+spring:
+  application:
+    name: voting-blockchain
+
+blockchain:
+  difficulty: 4
+  block-size: 100
+  node-id: ${NODE_ID:node-1}
+  
+# For multiple nodes, use different ports
+# NODE_ID=node-2 java -jar app.jar --server.port=8081
+```
+
+### 6.2 Main Application
+
+```java
+package com.voting.blockchain;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@SpringBootApplication
+@EnableScheduling
+public class VotingBlockchainApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(VotingBlockchainApplication.class, args);
+    }
+}
+```
+
+---
+
+## STEP 7: Android Light Node Implementation
+
+### 7.1 build.gradle (app level)
+
+```groovy
+dependencies {
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.70'
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+}
+```
+
+### 7.2 BlockchainModels.kt
+
+```kotlin
+package com.voting.app.blockchain
+
+import com.google.gson.annotations.SerializedName
+
+data class Vote(
+    @SerializedName("voteId") val voteId: String,
+    @SerializedName("voterId") val voterId: String,
+    @SerializedName("candidateId") val candidateId: String,
+    @SerializedName("timestamp") val timestamp: Long,
+    @SerializedName("signature") val signature: String,
+    @SerializedName("voterPublicKey") val voterPublicKey: String
+) {
+    fun getSignableData(): String = "$voteId$voterId$candidateId$timestamp"
+}
+
+data class Block(
+    @SerializedName("index") val index: Int,
+    @SerializedName("timestamp") val timestamp: Long,
+    @SerializedName("votes") val votes: List<Vote>,
+    @SerializedName("previousHash") val previousHash: String,
+    @SerializedName("hash") val hash: String,
+    @SerializedName("nonce") val nonce: Int,
+    @SerializedName("merkleRoot") val merkleRoot: String
+)
+
+data class VoteRequest(
+    @SerializedName("voterId") val voterId: String,
+    @SerializedName("candidateId") val candidateId: String,
+    @SerializedName("signature") val signature: String,
+    @SerializedName("publicKey") val publicKey: String
+)
+
+data class VoteResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("voteId") val voteId: String?,
+    @SerializedName("blockIndex") val blockIndex: Int?
+)
+
+data class ChainStatus(
+    @SerializedName("chainLength") val chainLength: Int,
+    @SerializedName("latestBlockHash") val latestBlockHash: String,
+    @SerializedName("pendingVotes") val pendingVotes: Int,
+    @SerializedName("isValid") val isValid: Boolean,
+    @SerializedName("totalVotes") val totalVotes: Long
+)
+```
+
+### 7.3 CryptoManager.kt
+
+```kotlin
+package com.voting.app.blockchain
+
+import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.*
+import java.security.spec.ECGenParameterSpec
+import javax.crypto.Cipher
+
+class CryptoManager(private val context: Context) {
+    
+    companion object {
+        private const val KEYSTORE_ALIAS = "voting_keypair"
+        private const val ANDROID_KEYSTORE = "AndroidKeyStore"
+    }
+    
+    init {
+        Security.addProvider(BouncyCastleProvider())
+    }
+    
+    // Generate or retrieve key pair
+    fun getOrCreateKeyPair(): KeyPair {
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+        keyStore.load(null)
+        
+        return if (keyStore.containsAlias(KEYSTORE_ALIAS)) {
+            val privateKey = keyStore.getKey(KEYSTORE_ALIAS, null) as PrivateKey
+            val publicKey = keyStore.getCertificate(KEYSTORE_ALIAS).publicKey
+            KeyPair(publicKey, privateKey)
+        } else {
+            generateKeyPair()
+        }
+    }
+    
+    private fun generateKeyPair(): KeyPair {
+        val keyPairGenerator = KeyPairGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_EC,
+            ANDROID_KEYSTORE
+        )
+        
+        val parameterSpec = KeyGenParameterSpec.Builder(
+            KEYSTORE_ALIAS,
+            KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY
+        )
+            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            .setDigests(KeyProperties.DIGEST_SHA256)
+            .build()
+        
+        keyPairGenerator.initialize(parameterSpec)
+        return keyPairGenerator.generateKeyPair()
+    }
+    
+    // Sign data
+    fun sign(data: String): String {
+        val keyPair = getOrCreateKeyPair()
+        val signature = Signature.getInstance("SHA256withECDSA")
+        signature.initSign(keyPair.private)
+        signature.update(data.toByteArray())
+        return Base64.encodeToString(signature.sign(), Base64.NO_WRAP)
+    }
+    
+    // Verify signature
+    fun verify(data: String, signatureStr: String, publicKeyStr: String): Boolean {
+        return try {
+            val publicKeyBytes = Base64.decode(publicKeyStr, Base64.NO_WRAP)
+            val keySpec = java.security.spec.X509EncodedKeySpec(publicKeyBytes)
+            val keyFactory = KeyFactory.getInstance("EC")
+            val publicKey = keyFactory.generatePublic(keySpec)
+            
+            val signature = Signature.getInstance("SHA256withECDSA")
+            signature.initVerify(publicKey)
+            signature.update(data.toByteArray())
+            signature.verify(Base64.decode(signatureStr, Base64.NO_WRAP))
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    // Get public key as string
+    fun getPublicKeyString(): String {
+        val keyPair = getOrCreateKeyPair()
+        return Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+    }
+    
+    // SHA-256 hash
+    fun sha256(input: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest(input.toByteArray())
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+    
+    // Hash voter ID for anonymity
+    fun hashVoterId(rawVoterId: String, salt: String): String {
+        return sha256(rawVoterId + salt)
+    }
+}
+```
+
+### 7.4 BlockchainApi.kt
+
+```kotlin
+package com.voting.app.blockchain
+
+import retrofit2.Response
+import retrofit2.http.*
+
+interface BlockchainApi {
+    
+    @GET("api/blockchain/chain")
+    suspend fun getChain(): Response<List<Block>>
+    
+    @GET("api/blockchain/status")
+    suspend fun getStatus(): Response<ChainStatus>
+    
+    @POST("api/blockchain/vote")
+    suspend fun submitVote(@Body request: VoteRequest): Response<VoteResponse>
+    
+    @GET("api/blockchain/results")
+    suspend fun getResults(): Response<Map<String, Long>>
+    
+    @GET("api/blockchain/verify")
+    suspend fun verifyChain(): Response<VerificationResponse>
+    
+    @GET("api/blockchain/vote-status/{voterId}")
+    suspend fun checkVoteStatus(@Path("voterId") voterId: String): Response<VoteStatusResponse>
+}
+
+data class VerificationResponse(
+    val valid: Boolean,
+    val blocksVerified: Int,
+    val timestamp: Long
+)
+
+data class VoteStatusResponse(
+    val voterId: String,
+    val hasVoted: Boolean
+)
+```
+
+### 7.5 LightNodeValidator.kt
+
+```kotlin
+package com.voting.app.blockchain
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * Light node validation - runs on device SOC
+ * Validates chain integrity without full mining
+ */
+class LightNodeValidator(private val cryptoManager: CryptoManager) {
+    
+    private var localChainCache: List<Block> = emptyList()
+    private var difficulty: Int = 4
+    
+    // Validate entire chain
+    suspend fun validateChain(chain: List<Block>): ValidationResult = withContext(Dispatchers.Default) {
+        if (chain.isEmpty()) {
+            return@withContext ValidationResult(false, "Empty chain")
+        }
+        
+        // Validate genesis block
+        if (chain[0].previousHash != "0") {
+            return@withContext ValidationResult(false, "Invalid genesis block")
+        }
+        
+        for (i in 1 until chain.size) {
+            val current = chain[i]
+            val previous = chain[i - 1]
+            
+            // Verify hash calculation
+            val calculatedHash = calculateBlockHash(current)
+            if (current.hash != calculatedHash) {
+                return@withContext ValidationResult(
+                    false, 
+                    "Invalid hash at block ${current.index}"
+                )
+            }
+            
+            // Verify chain linkage
+            if (current.previousHash != previous.hash) {
+                return@withContext ValidationResult(
+                    false,
+                    "Broken chain at block ${current.index}"
+                )
+            }
+            
+            // Verify proof of work
+            val target = "0".repeat(difficulty)
+            if (!current.hash.startsWith(target)) {
+                return@withContext ValidationResult(
+                    false,
+                    "Invalid proof of work at block ${current.index}"
+                )
+            }
+            
+            // Verify merkle root
+            val calculatedMerkle = calculateMerkleRoot(current.votes)
+            if (current.merkleRoot != calculatedMerkle) {
+                return@withContext ValidationResult(
+                    false,
+                    "Invalid merkle root at block ${current.index}"
+                )
+            }
+            
+            // Verify all vote signatures
+            for (vote in current.votes) {
+                if (!verifyVoteSignature(vote)) {
+                    return@withContext ValidationResult(
+                        false,
+                        "Invalid vote signature in block ${current.index}"
+                    )
+                }
+            }
+        }
+        
+        // Update local cache
+        localChainCache = chain
+        
+        ValidationResult(true, "Chain valid: ${chain.size} blocks verified")
+    }
+    
+    // Calculate block hash
+    private fun calculateBlockHash(block: Block): String {
+        val data = "${block.index}${block.timestamp}${block.previousHash}" +
+                   "${block.merkleRoot}${block.nonce}"
+        return cryptoManager.sha256(data)
+    }
+    
+    // Calculate merkle root
+    private fun calculateMerkleRoot(votes: List<Vote>): String {
+        if (votes.isEmpty()) {
+            return cryptoManager.sha256("empty")
+        }
+        
+        var hashes = votes.map { cryptoManager.sha256(it.getSignableData()) }.toMutableList()
+        
+        while (hashes.size > 1) {
+            val newHashes = mutableListOf<String>()
+            for (i in hashes.indices step 2) {
+                val left = hashes[i]
+                val right = if (i + 1 < hashes.size) hashes[i + 1] else left
+                newHashes.add(cryptoManager.sha256(left + right))
+            }
+            hashes = newHashes
+        }
+        
+        return hashes[0]
+    }
+    
+    // Verify individual vote signature
+    private fun verifyVoteSignature(vote: Vote): Boolean {
+        return cryptoManager.verify(
+            vote.getSignableData(),
+            vote.signature,
+            vote.voterPublicKey
+        )
+    }
+    
+    // Verify single block (for real-time updates)
+    fun verifyBlock(block: Block, previousBlock: Block): Boolean {
+        // Check linkage
+        if (block.previousHash != previousBlock.hash) return false
+        
+        // Check hash
+        if (block.hash != calculateBlockHash(block)) return false
+        
+        // Check proof of work
+        val target = "0".repeat(difficulty)
+        if (!block.hash.startsWith(target)) return false
+        
+        return true
+    }
+    
+    // Get cached chain
+    fun getCachedChain(): List<Block> = localChainCache
+    
+    // Check if vote exists in chain
+    fun findVote(voteId: String): Vote? {
+        for (block in localChainCache) {
+            val vote = block.votes.find { it.voteId == voteId }
+            if (vote != null) return vote
+        }
+        return null
+    }
+}
+
+data class ValidationResult(
+    val isValid: Boolean,
+    val message: String
+)
+```
+
+### 7.6 VotingRepository.kt
+
+```kotlin
+package com.voting.app.blockchain
+
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.UUID
+
+class VotingRepository(context: Context) {
+    
+    private val cryptoManager = CryptoManager(context)
+    private val validator = LightNodeValidator(cryptoManager)
+    
+    private val api: BlockchainApi by lazy {
+        Retrofit.Builder()
+            .baseUrl("http://YOUR_SERVER_IP:8080/")  // Replace with your server
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(BlockchainApi::class.java)
+    }
+    
+    // Submit a vote
+    suspend fun submitVote(
+        userId: String,
+        candidateId: String,
+        salt: String
+    ): Result<VoteResponse> = withContext(Dispatchers.IO) {
+        try {
+            // Hash voter ID for anonymity
+            val hashedVoterId = cryptoManager.hashVoterId(userId, salt)
+            
+            // Create vote data to sign
+            val voteId = UUID.randomUUID().toString()
+            val timestamp = System.currentTimeMillis()
+            val signableData = "$voteId$hashedVoterId$candidateId$timestamp"
+            
+            // Sign the vote
+            val signature = cryptoManager.sign(signableData)
+            val publicKey = cryptoManager.getPublicKeyString()
+            
+            // Create request
+            val request = VoteRequest(
+                voterId = hashedVoterId,
+                candidateId = candidateId,
+                signature = signature,
+                publicKey = publicKey
+            )
+            
+            // Submit to server
+            val response = api.submitVote(request)
+            
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Vote submission failed: ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Fetch and validate chain
+    suspend fun fetchAndValidateChain(): Result<ValidationResult> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getChain()
+            
+            if (response.isSuccessful && response.body() != null) {
+                val chain = response.body()!!
+                val validationResult = validator.validateChain(chain)
+                Result.success(validationResult)
+            } else {
+                Result.failure(Exception("Failed to fetch chain"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Get voting results
+    suspend fun getResults(): Result<Map<String, Long>> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getResults()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to fetch results"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Check if user has voted
+    suspend fun hasVoted(userId: String, salt: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val hashedVoterId = cryptoManager.hashVoterId(userId, salt)
+            val response = api.checkVoteStatus(hashedVoterId)
+            
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.hasVoted)
+            } else {
+                Result.failure(Exception("Failed to check vote status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Get chain status
+    suspend fun getChainStatus(): Result<ChainStatus> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getStatus()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Failed to fetch status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // Get local cached chain
+    fun getLocalChain(): List<Block> = validator.getCachedChain()
+}
+```
+
+### 7.7 VotingViewModel.kt
+
+```kotlin
+package com.voting.app.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import com.voting.app.blockchain.*
+import kotlinx.coroutines.launch
+
+class VotingViewModel(application: Application) : AndroidViewModel(application) {
+    
+    private val repository = VotingRepository(application)
+    
+    private val _voteResult = MutableLiveData<VoteResult>()
+    val voteResult: LiveData<VoteResult> = _voteResult
+    
+    private val _chainStatus = MutableLiveData<ChainStatus>()
+    val chainStatus: LiveData<ChainStatus> = _chainStatus
+    
+    private val _validationResult = MutableLiveData<ValidationResult>()
+    val validationResult: LiveData<ValidationResult> = _validationResult
+    
+    private val _results = MutableLiveData<Map<String, Long>>()
+    val results: LiveData<Map<String, Long>> = _results
+    
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+    
+    companion object {
+        // In production, get this from secure config
+        private const val VOTE_SALT = "your-secure-salt-here"
+    }
+    
+    fun submitVote(userId: String, candidateId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            repository.submitVote(userId, candidateId, VOTE_SALT)
+                .onSuccess { response ->
+                    _voteResult.value = VoteResult(
+                        success = response.success,
+                        message = response.message,
+                        voteId = response.voteId
+                    )
+                }
+                .onFailure { error ->
+                    _voteResult.value = VoteResult(
+                        success = false,
+                        message = error.message ?: "Vote failed"
+                    )
+                }
+            
+            _isLoading.value = false
+        }
+    }
+    
+    fun validateBlockchain() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            repository.fetchAndValidateChain()
+                .onSuccess { result ->
+                    _validationResult.value = result
+                }
+                .onFailure { error ->
+                    _validationResult.value = ValidationResult(
+                        false, 
+                        error.message ?: "Validation failed"
+                    )
+                }
+            
+            _isLoading.value = false
+        }
+    }
+    
+    fun fetchResults() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            repository.getResults()
+                .onSuccess { _results.value = it }
+                .onFailure { /* Handle error */ }
+            
+            _isLoading.value = false
+        }
+    }
+    
+    fun fetchChainStatus() {
+        viewModelScope.launch {
+            repository.getChainStatus()
+                .onSuccess { _chainStatus.value = it }
+        }
+    }
+    
+    fun checkIfVoted(userId: String, callback: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            repository.hasVoted(userId, VOTE_SALT)
+                .onSuccess { callback(it) }
+                .onFailure { callback(false) }
+        }
+    }
+}
+
+data class VoteResult(
+    val success: Boolean,
+    val message: String,
+    val voteId: String? = null
+)
+```
+
+---
+
+## STEP 8: Deployment Architecture
+
+### 8.1 Docker Configuration
+
+```dockerfile
+# Dockerfile
+FROM openjdk:17-jdk-slim
+
+WORKDIR /app
+
+COPY target/blockchain-1.0.0.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+### 8.2 Docker Compose for Multiple Nodes
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  blockchain-node-1:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ID=node-1
+      - PEERS=http://blockchain-node-2:8080,http://blockchain-node-3:8080
+    networks:
+      - blockchain-network
+
+  blockchain-node-2:
+    build: .
+    ports:
+      - "8081:8080"
+    environment:
+      - NODE_ID=node-2
+      - PEERS=http://blockchain-node-1:8080,http://blockchain-node-3:8080
+    networks:
+      - blockchain-network
+
+  blockchain-node-3:
+    build: .
+    ports:
+      - "8082:8080"
+    environment:
+      - NODE_ID=node-3
+      - PEERS=http://blockchain-node-1:8080,http://blockchain-node-2:8080
+    networks:
+      - blockchain-network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - blockchain-node-1
+      - blockchain-node-2
+      - blockchain-node-3
+    networks:
+      - blockchain-network
+
+networks:
+  blockchain-network:
+    driver: bridge
+```
+
+### 8.3 Nginx Load Balancer
+
+```nginx
+# nginx.conf
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream blockchain_nodes {
+        least_conn;
+        server blockchain-node-1:8080;
+        server blockchain-node-2:8080;
+        server blockchain-node-3:8080;
+    }
+
+    server {
+        listen 80;
+
+        location / {
+            proxy_pass http://blockchain_nodes;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+    }
+}
+```
+
+---
+
+## STEP 9: Testing the System
+
+### 9.1 Test with cURL
+
+```bash
+# Check chain status
+curl http://localhost:8080/api/blockchain/status
+
+# Submit a test vote (you'll need proper keys)
+curl -X POST http://localhost:8080/api/blockchain/vote \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voterId": "hashed-voter-id",
+    "candidateId": "candidate-1",
+    "signature": "base64-signature",
+    "publicKey": "base64-public-key"
+  }'
+
+# Get full chain
+curl http://localhost:8080/api/blockchain/chain
+
+# Get results
+curl http://localhost:8080/api/blockchain/results
+
+# Force mine a block
+curl -X POST http://localhost:8080/api/blockchain/mine
+
+# Verify chain integrity
+curl http://localhost:8080/api/blockchain/verify
+```
+
+---
+
+## Summary: How It All Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         VOTE FLOW                                │
+└─────────────────────────────────────────────────────────────────┘
+
+1. USER REGISTERS
+   ┌──────────┐
+   │ Android  │ ──► Generates EC KeyPair (stored in Android Keystore)
+   │   App    │ ──► Gets unique anonymous voter ID
+   └──────────┘
+
+2. USER VOTES
+   ┌──────────┐
+   │  Mobile  │ ──► Creates vote data
+   │   SOC    │ ──► Signs with private key
+   │          │ ──► Sends to server
+   └──────────┘
+
+3. SERVER PROCESSES
+   ┌──────────┐
+   │  Spring  │ ──► Verifies signature
+   │   Boot   │ ──► Checks double-voting
+   │  Server  │ ──► Adds to pending pool
+   └──────────┘
+
+4. BLOCK MINING
+   ┌──────────┐
+   │  Mining  │ ──► Collects pending votes
+   │  Process │ ──► Calculates merkle root
+   │          │ ──► Finds valid nonce (PoW)
+   │          │ ──► Broadcasts to peers
+   └──────────┘
+
+5. MOBILE VALIDATION
+   ┌──────────┐
+   │  Light   │ ──► Downloads chain
+   │   Node   │ ──► Validates all hashes
+   │ (Mobile) │ ──► Verifies all signatures
+   │          │ ──► Confirms integrity
+   └──────────┘
+```
+
+---
+
+## Key Points for Voting Integrity
+
+| Feature | Implementation |
+|---------|----------------|
+| **Double-vote prevention** | Voter ID registry + chain verification |
+| **Vote anonymity** | Hashed voter IDs with salt |
+| **Vote verification** | ECDSA signatures |
+| **Tamper detection** | SHA-256 hash chains |
+| **Data integrity** | Merkle trees |
+| **Consensus** | Proof of Work + longest chain |
+| **Decentralization** | Multiple server nodes |
+| **Client verification** | Light node validation on mobile |
+
+This gives you a fully functional private blockchain for voting that you can modify and extend as needed!
